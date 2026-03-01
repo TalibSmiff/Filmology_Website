@@ -1,36 +1,211 @@
+/* Global styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  color: #333;
+  line-height: 1.6;
+  background-color: #f9f9f9;
+}
+
+/* Navigation */
+nav {
+  background-color: #333333;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 ul {
   list-style-type: none;
   margin: 0;
   padding: 0;
   overflow: hidden;
   background-color: #333333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 ul li {
-  float: left;
+  float: none;
 }
 
 ul li a {
   display: block;
   color: white;
   text-align: center;
-  padding: 14px 16px;
+  padding: 14px 20px;
   text-decoration: none;
+  font-weight: 500;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 ul li a:hover {
-  background-color: #111111;
+  background-color: #0070ba;
+  color: #fff;
 }
 
-img {
-    width: 100%;
-    height: 100vh;
-    object-fit: cover;
-    display: block;
-    position: relative;
+/* Main container */
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 40px 20px;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
-body {
-    margin: 0;
-    padding: 0;
+.container h1 {
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+  text-align: center;
+  color: #333;
+}
+
+.container > p {
+  text-align: center;
+  max-width: 600px;
+  margin: 10px auto 40px;
+  color: #666;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Resource list styling */
+.container ul {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background-color: transparent;
+  width: 100%;
+  max-width: 700px;
+}
+
+.container ul li {
+  float: none;
+  background-color: white;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.container ul li:hover {
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.container ul li a {
+  display: block;
+  color: #0070ba;
+  background-color: white;
+  text-align: left;
+  padding: 20px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.05rem;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+.container ul li a:hover {
+  background-color: #f0f0f0;
+  color: #005a96;
+}
+
+/* Resource card grid - for displaying resources with descriptions */
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+  width: 100%;
+  margin-top: 40px;
+}
+
+.resource-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.resource-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.resource-card h3 {
+  color: #333;
+  margin-bottom: 12px;
+  font-size: 1.2rem;
+}
+
+.resource-card p {
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 15px;
+}
+
+.resource-card a {
+  display: inline-block;
+  color: #0070ba;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.resource-card a:hover {
+  color: #005a96;
+  text-decoration: underline;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container h1 {
+    font-size: 2rem;
+  }
+
+  .container {
+    padding: 20px;
+  }
+
+  .container ul li a {
+    padding: 15px;
+    font-size: 1rem;
+  }
+
+  .resources-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  ul {
+    flex-wrap: wrap;
+  }
+
+  ul li a {
+    padding: 12px 15px;
+    font-size: 0.9rem;
+  }
 }

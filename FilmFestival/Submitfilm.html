@@ -1,22 +1,73 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FilmFestival</title>
-    <link rel="stylesheet" href="../FilmFestival/Submitfilm.css">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Submit a Film</title>
+    <link rel="stylesheet" href="../FilmFestival/Submitfilm.css" />
+  </head>
+  <body>
     <nav>
-            <ul>
-                <li><a href="../index.html">Home</a></li>
-                <li><a href="../DonatePage/Donate.html">Donate</a></li>
-                <li><a href="../MeetTheStaff/Staff.html">Meet The Staff</a></li>
-                <li><a href="../MentalHealthResources/Resources.html">Resources</a></li>
-                <li><a href="../EventBritePage/Event.html">Events</a></li>
-                <li><a href="Submitfilm.html">Submit a Film</a></li>
-            </ul>
-        </nav>
+      <ul>
+        <li><a href="../index.html">Home</a></li>
+        <li><a href="../DonatePage/Donate.html">Donate</a></li>
+        <li><a href="../MeetTheStaff/Staff.html">Meet The Staff</a></li>
+        <li><a href="../MentalHealthResources/Resources.html">Resources</a></li>
+        <li><a href="../EventBritePage/Event.html">Events</a></li>
+        <li><a href="Submitfilm.html">Submit a Film</a></li>
+      </ul>
+    </nav>
 
-</body>
+    <div class="container">
+      <h1>Submit Your Film</h1>
+      <p>
+        We're excited to see your creative work! Submit your film to our festival and share your story with our
+        community.
+      </p>
+
+      <form class="form-container">
+        <div class="form-group">
+          <label for="filmmaker-name">Filmmaker Name *</label>
+          <input type="text" id="filmmaker-name" name="filmmaker-name" required />
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email Address *</label>
+          <input type="email" id="email" name="email" required />
+        </div>
+
+        <div class="form-group">
+          <label for="phone">Phone Number</label>
+          <input type="tel" id="phone" name="phone" />
+        </div>
+
+        <div class="form-group">
+          <label for="film-title">Film Title *</label>
+          <input type="text" id="film-title" name="film-title" required />
+        </div>
+
+        <div class="form-group">
+          <label for="film-description">Film Description *</label>
+          <textarea id="film-description" name="film-description" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="film-duration">Duration (minutes) *</label>
+          <input type="number" id="film-duration" name="film-duration" min="1" required />
+        </div>
+
+        <div class="form-group">
+          <label for="submission-date">Submission Date *</label>
+          <input type="date" id="submission-date" name="submission-date" required />
+        </div>
+
+        <div class="form-group">
+          <label for="film-link">Film Link (YouTube, Vimeo, etc.) *</label>
+          <input type="text" id="film-link" name="film-link" placeholder="https://..." required />
+        </div>
+
+        <button type="submit" class="submit-button">Submit Film</button>
+      </form>
+    </div>
+  </body>
 </html>
