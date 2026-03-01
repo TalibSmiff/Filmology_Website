@@ -21,3 +21,43 @@ ul li a {
 ul li a:hover {
   background-color: #111111;
 }
+
+ooter {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    padding: 40px 20px;
+    margin-top: 60px;
+    border-top: 3px solid #d4af37;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+Footer div {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+Footer a {
+    color: #d4af37;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+Footer a:hover {
+    color: #ffd700;
+    text-decoration: underline;
+}
+
+img {
+    width: 100%;
+    height: 100vh;
+    object-fit: cover;
+    display: block;
+    position: relative;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}
