@@ -1,0 +1,247 @@
+/* ═══════════════════════════════════════════════════════
+   PaymentModal.css
+   Cinematic dark-card payment popup for the film festival
+   ═══════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap');
+
+/* ── Overlay ─────────────────────────────────────────── */
+.payment-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+
+  /* Entrance animation */
+  opacity: 0;
+  animation: overlayIn 0.25s ease forwards;
+}
+
+.payment-overlay[hidden] {
+  display: none !important;
+}
+
+@keyframes overlayIn {
+  to { opacity: 1; }
+}
+
+/* ── Modal card ──────────────────────────────────────── */
+.payment-modal {
+  position: relative;
+  background: #111317;
+  border: 1px solid #2a2d35;
+  border-radius: 16px;
+  padding: 2.25rem 2rem 2rem;
+  width: 100%;
+  max-width: 440px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.04) inset,
+    0 32px 64px rgba(0,0,0,0.6);
+  font-family: 'DM Sans', sans-serif;
+  color: #e8e8e8;
+
+  transform: translateY(24px);
+  animation: modalIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.05s forwards;
+}
+
+@keyframes modalIn {
+  to { transform: translateY(0); }
+}
+
+/* ── Close button ────────────────────────────────────── */
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255,255,255,0.06);
+  border: none;
+  color: #aaa;
+  font-size: 1rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.modal-close:hover {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+
+/* ── Header ──────────────────────────────────────────── */
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.modal-film-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.modal-header h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+  margin: 0;
+  color: #fff;
+  letter-spacing: 0.01em;
+}
+
+/* ── Summary block ───────────────────────────────────── */
+.modal-summary {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1.5rem;
+}
+
+.modal-category {
+  font-size: 0.85rem;
+  color: #9b9faa;
+  margin: 0 0 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.modal-fee-line {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #c8c8c8;
+}
+
+.modal-fee-line strong {
+  color: #e8c97a;   /* warm gold accent */
+  font-size: 1.1rem;
+}
+
+/* ── Card section ────────────────────────────────────── */
+.modal-card-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b6f7a;
+  margin: 0 0 0.85rem;
+}
+
+.payment-modal .form-group {
+  margin-bottom: 0.9rem;
+}
+
+.payment-modal label {
+  display: block;
+  font-size: 0.8rem;
+  color: #8a8e99;
+  margin-bottom: 0.3rem;
+  letter-spacing: 0.03em;
+}
+
+.payment-modal input {
+  width: 100%;
+  background: #1c1f26;
+  border: 1px solid #2e3240;
+  border-radius: 8px;
+  color: #e8e8e8;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  padding: 0.6rem 0.75rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.payment-modal input::placeholder {
+  color: #454954;
+}
+
+.payment-modal input:focus {
+  border-color: #e8c97a;
+  box-shadow: 0 0 0 3px rgba(232, 201, 122, 0.12);
+}
+
+/* Expiry + CVV side-by-side */
+.card-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+/* ── Error message ───────────────────────────────────── */
+.payment-error {
+  color: #f87171;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(248, 113, 113, 0.1);
+  border-radius: 6px;
+  border-left: 3px solid #f87171;
+}
+
+.payment-error[hidden] {
+  display: none;
+}
+
+/* ── Pay button ──────────────────────────────────────── */
+.pay-button {
+  width: 100%;
+  margin-top: 1.25rem;
+  padding: 0.85rem;
+  background: linear-gradient(135deg, #c9a84c 0%, #e8c97a 50%, #c9a84c 100%);
+  background-size: 200% 200%;
+  color: #1a1408;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background-position 0.4s ease, transform 0.15s ease, opacity 0.2s;
+}
+
+.pay-button:hover {
+  background-position: right center;
+  transform: translateY(-1px);
+}
+
+.pay-button:active {
+  transform: translateY(0);
+}
+
+.pay-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Secure note ─────────────────────────────────────── */
+.modal-secure-note {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #555a66;
+  margin: 0.85rem 0 0;
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 480px) {
+  .payment-modal {
+    padding: 1.75rem 1.25rem 1.5rem;
+  }
+
+  .card-row {
+    grid-template-columns: 1fr;
+  }
+}

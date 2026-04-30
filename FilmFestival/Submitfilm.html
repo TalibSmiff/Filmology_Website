@@ -1,73 +1,145 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Submit a Film</title>
-    <link rel="stylesheet" href="../FilmFestival/Submitfilm.css" />
-  </head>
-  <body>
-    <nav>
-      <ul>
-        <li><a href="../index.html">Home</a></li>
-        <li><a href="../MeetTheStaff/Staff.html">Meet The Staff</a></li>
-        <li><a href="../MentalHealthResources/Resources.html">Resources</a></li>
-        <li><a href="../EventBritePage/Event.html">Events</a></li>
-        <li><a href="Submitfilm.html">Submit a Film</a></li>
-      </ul>
-    </nav>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submit a Film</title>
+  <link rel="stylesheet" href="../FilmFestival/Submitfilm.css" />
+  <link rel="stylesheet" href="../FilmFestival/PaymentModal.css" />
+</head>
+<body>
+  <nav>
+    <ul>
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="../MeetTheStaff/Staff.html">Meet The Staff</a></li>
+      <li><a href="../MentalHealthResources/Resources.html">Resources</a></li>
+      <li><a href="../EventBritePage/Event.html">Events</a></li>
+      <li><a href="Submitfilm.html">Submit a Film</a></li>
+    </ul>
+  </nav>
 
-    <div class="container">
-      <h1>Submit Your Film</h1>
-      <p>
-        We're excited to see your creative work! Submit your film to our festival and share your story with our
-        community.
-      </p>
+  <div class="container">
+    <h1>Submit Your Film</h1>
+    <p>
+      We're excited to see your creative work! Submit your film to our festival
+      and share your story with our community.
+    </p>
 
-      <form id="submit-film-form" class="form-container">
+    <form id="submit-film-form" class="form-container">
+
+      <div class="form-group">
+        <label for="filmmaker-name">Filmmaker Name *</label>
+        <input type="text" id="filmmaker-name" name="filmmaker-name" required />
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email Address *</label>
+        <input type="email" id="email" name="email" required />
+      </div>
+
+      <div class="form-group">
+        <label for="phone">Phone Number</label>
+        <input type="tel" id="phone" name="phone" />
+      </div>
+
+      <div class="form-group">
+        <label for="film-title">Film Title *</label>
+        <input type="text" id="film-title" name="film-title" required />
+      </div>
+
+      <!-- ★ NEW: Film category drives the submission fee -->
+      <div class="form-group">
+        <label for="film-category">Film Category *</label>
+        <select id="film-category" name="film-category" required>
+          <option value="" disabled selected>Select a category…</option>
+          <option value="feature-film">Feature Film (50 min+) — $25</option>
+          <option value="feature-documentary">Feature Documentary (50 min+) — $25</option>
+          <option value="narrative-short">Narrative Short (20 min or less) — $15</option>
+          <option value="documentary-short">Documentary Short (20 min or less) — $15</option>
+          <option value="student-film">Student Film / Documentary (10 min or less) — $10</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="film-description">Film Description *</label>
+        <textarea id="film-description" name="film-description" required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="film-duration">Duration (minutes) *</label>
+        <input type="number" id="film-duration" name="film-duration" min="1" required />
+      </div>
+
+      <div class="form-group">
+        <label for="submission-date">Submission Date *</label>
+        <input type="date" id="submission-date" name="submission-date" required />
+      </div>
+
+      <div class="form-group">
+        <label for="film-link">Film Link (YouTube, Vimeo, etc.) *</label>
+        <input type="text" id="film-link" name="film-link" placeholder="https://…" required />
+      </div>
+
+      <button type="submit" class="submit-button">Submit Film</button>
+    </form>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       PAYMENT MODAL
+       ═══════════════════════════════════════════════════ -->
+  <div id="payment-overlay" class="payment-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+    <div class="payment-modal">
+
+      <button class="modal-close" id="modal-close-btn" aria-label="Close payment dialog">&#x2715;</button>
+
+      <div class="modal-header">
+        <span class="modal-film-icon">🎬</span>
+        <h2 id="modal-title">Complete Your Submission</h2>
+      </div>
+
+      <div class="modal-summary">
+        <p id="modal-category-label" class="modal-category"></p>
+        <p class="modal-fee-line">Submission Fee: <strong id="modal-fee"></strong></p>
+      </div>
+
+      <div class="modal-card-section">
+        <p class="modal-card-label">Card Details</p>
+
         <div class="form-group">
-          <label for="filmmaker-name">Filmmaker Name *</label>
-          <input type="text" id="filmmaker-name" name="filmmaker-name" required />
+          <label for="card-name">Name on Card *</label>
+          <input type="text" id="card-name" placeholder="Jane Smith" autocomplete="cc-name" />
         </div>
 
         <div class="form-group">
-          <label for="email">Email Address *</label>
-          <input type="email" id="email" name="email" required />
+          <label for="card-number">Card Number *</label>
+          <input type="text" id="card-number" placeholder="1234 5678 9012 3456"
+                 maxlength="19" autocomplete="cc-number" inputmode="numeric" />
         </div>
 
-        <div class="form-group">
-          <label for="phone">Phone Number</label>
-          <input type="tel" id="phone" name="phone" />
+        <div class="card-row">
+          <div class="form-group">
+            <label for="card-expiry">Expiry *</label>
+            <input type="text" id="card-expiry" placeholder="MM / YY"
+                   maxlength="7" autocomplete="cc-exp" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label for="card-cvv">CVV *</label>
+            <input type="text" id="card-cvv" placeholder="123"
+                   maxlength="4" autocomplete="cc-csc" inputmode="numeric" />
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="film-title">Film Title *</label>
-          <input type="text" id="film-title" name="film-title" required />
-        </div>
+        <p id="payment-error" class="payment-error" hidden></p>
+      </div>
 
-        <div class="form-group">
-          <label for="film-description">Film Description *</label>
-          <textarea id="film-description" name="film-description" required></textarea>
-        </div>
+      <button id="pay-btn" class="pay-button">
+        Pay <span id="pay-btn-amount"></span> &amp; Submit
+      </button>
 
-        <div class="form-group">
-          <label for="film-duration">Duration (minutes) *</label>
-          <input type="number" id="film-duration" name="film-duration" min="1" required />
-        </div>
-
-        <div class="form-group">
-          <label for="submission-date">Submission Date *</label>
-          <input type="date" id="submission-date" name="submission-date" required />
-        </div>
-
-        <div class="form-group">
-          <label for="film-link">Film Link (YouTube, Vimeo, etc.) *</label>
-          <input type="text" id="film-link" name="film-link" placeholder="https://..." required />
-        </div>
-
-        <button type="submit" class="submit-button">Submit Film</button>
-      </form>
+      <p class="modal-secure-note">🔒 Your payment info is never stored on our servers.</p>
     </div>
-    <script src="Submit.js"></script>
-  </body>
+  </div>
+
+  <script src="Submit.js"></script>
+</body>
 </html>
