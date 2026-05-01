@@ -6,6 +6,9 @@
   <title>Submit a Film</title>
   <link rel="stylesheet" href="../FilmFestival/Submitfilm.css" />
   <link rel="stylesheet" href="../FilmFestival/PaymentModal.css" />
+
+  <!-- Stripe.js must load from Stripe's CDN — do not self-host -->
+  <script src="https://js.stripe.com/v3/" async></script>
 </head>
 <body>
   <nav>
@@ -47,7 +50,6 @@
         <input type="text" id="film-title" name="film-title" required />
       </div>
 
-      <!-- ★ NEW: Film category drives the submission fee -->
       <div class="form-group">
         <label for="film-category">Film Category *</label>
         <select id="film-category" name="film-category" required>
@@ -84,10 +86,13 @@
     </form>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════
+  <!-- ═══════════════════════════════════════════════════════
        PAYMENT MODAL
-       ═══════════════════════════════════════════════════ -->
-  <div id="payment-overlay" class="payment-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+       Card input is rendered by Stripe Elements (#stripe-card-element).
+       Stripe tokenises the card number — it never touches our server.
+       ═══════════════════════════════════════════════════════ -->
+  <div id="payment-overlay" class="payment-overlay" role="dialog"
+       aria-modal="true" aria-labelledby="modal-title" hidden>
     <div class="payment-modal">
 
       <button class="modal-close" id="modal-close-btn" aria-label="Close payment dialog">&#x2715;</button>
@@ -105,30 +110,10 @@
       <div class="modal-card-section">
         <p class="modal-card-label">Card Details</p>
 
-        <div class="form-group">
-          <label for="card-name">Name on Card *</label>
-          <input type="text" id="card-name" placeholder="Jane Smith" autocomplete="cc-name" />
-        </div>
+        <!-- Stripe Elements mounts a secure iframe here -->
+        <div id="stripe-card-element" class="stripe-card-element"></div>
 
-        <div class="form-group">
-          <label for="card-number">Card Number *</label>
-          <input type="text" id="card-number" placeholder="1234 5678 9012 3456"
-                 maxlength="19" autocomplete="cc-number" inputmode="numeric" />
-        </div>
-
-        <div class="card-row">
-          <div class="form-group">
-            <label for="card-expiry">Expiry *</label>
-            <input type="text" id="card-expiry" placeholder="MM / YY"
-                   maxlength="7" autocomplete="cc-exp" inputmode="numeric" />
-          </div>
-          <div class="form-group">
-            <label for="card-cvv">CVV *</label>
-            <input type="text" id="card-cvv" placeholder="123"
-                   maxlength="4" autocomplete="cc-csc" inputmode="numeric" />
-          </div>
-        </div>
-
+        <!-- Stripe validation errors appear here -->
         <p id="payment-error" class="payment-error" hidden></p>
       </div>
 
@@ -136,7 +121,11 @@
         Pay <span id="pay-btn-amount"></span> &amp; Submit
       </button>
 
-      <p class="modal-secure-note">🔒 Your payment info is never stored on our servers.</p>
+      <p class="modal-secure-note">
+        🔒 Payments are processed securely by
+        <a href="https://stripe.com" target="_blank" rel="noopener">Stripe</a>.
+        Your card details never touch our servers.
+      </p>
     </div>
   </div>
 

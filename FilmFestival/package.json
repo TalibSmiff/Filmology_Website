@@ -1,0 +1,18 @@
+{
+  "name": "film-festival-server",
+  "version": "1.0.0",
+  "description": "Serverless function for film festival Stripe payments",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "stripe": "^16.0.0"
+  },
+  "scripts": {
+    "dev:netlify": "netlify dev",
+    "dev:vercel": "vercel dev"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}

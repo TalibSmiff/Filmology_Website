@@ -1,29 +1,46 @@
 /**
- * Submit.js
- * Film submission flow:
- *  1. Validate the form
- *  2. Open a payment popup with the correct fee for the chosen category
- *  3. Validate card fields (client-side only — wire up Stripe/Square for real charges)
- *  4. On "payment confirmed":
- *       a. Send admin notification → talibsmith77@gmail.com  (ADMIN_TEMPLATE_ID)
- *       b. Send filmmaker thank-you → submitter's email      (THANKYOU_TEMPLATE_ID)
- *  5. Log JSON to console, show success banner, reset form
+ * Submit.js — Film Festival Submission with Real Stripe Payments
  *
- * ── EmailJS setup (one-time) ────────────────────────────────────────────────
- *  1. https://www.emailjs.com → free account
- *  2. Add a Gmail service → copy Service ID
- *  3. Create TWO templates (see variable names below for placeholders)
- *  4. Account > API Keys → copy Public Key
- *  5. Fill in the four constants below
- * ──────────────────────────────────────────────────────────────────────────────
+ * Flow:
+ *  1. User submits form → client validates fields
+ *  2. Payment modal opens → Stripe Elements renders a secure card input
+ *  3. User clicks Pay → we call our serverless function to create a PaymentIntent
+ *  4. stripe.confirmCardPayment() completes the charge using Stripe's SDK
+ *  5. On success → send admin + thank-you emails via EmailJS in parallel
+ *  6. Show success banner, reset form
+ *
+ * ── What to fill in ─────────────────────────────────────────────────────────
+ *  STRIPE_PUBLIC_KEY    → Stripe Dashboard → Developers → API Keys → Publishable key
+ *  PAYMENT_ENDPOINT     → URL of your serverless function (see create-payment-intent.js)
+ *  EMAILJS_SERVICE_ID   → EmailJS Dashboard → Email Services
+ *  EMAILJS_PUBLIC_KEY   → EmailJS Dashboard → Account → API Keys
+ *  ADMIN_TEMPLATE_ID    → EmailJS template that notifies talibsmith77@gmail.com
+ *  THANKYOU_TEMPLATE_ID → EmailJS template that thanks the filmmaker
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const EMAILJS_SERVICE_ID = "service_k44zox9"; // e.g. "service_abc123"
-const EMAILJS_PUBLIC_KEY = "EBdFHT24XpBpYf0Vc"; // e.g. "aB1cD2eF3gH4iJ5k"
-const ADMIN_TEMPLATE_ID = "template_fuwyrtc"; // notifies talibsmith77@gmail.com
-const THANKYOU_TEMPLATE_ID = "template_uoshei6"; // goes to the filmmaker
+// ─── Configuration ────────────────────────────────────────────────────────────
 
-// ─── Fee schedule ─────────────────────────────────────────────────────────────
+const CONFIG = {
+  stripe: {
+    publicKey:
+      "pk_test_51TRsWp2d92kR6KM9bdDb3vIwGFq1ZGYpghTxuljfQdBfB3rhwy8yWFHrs4AVoRimTwvdGPFbZBxR2F4qpgkaCSAJ00Cw17xeL1", // ← replace
+    // For local testing use:  "pk_test_YOUR_PUBLISHABLE_KEY"
+  },
+  payment: {
+    // Netlify:  "/.netlify/functions/create-payment-intent"
+    // Vercel:   "/api/create-payment-intent"
+    endpoint: "/.netlify/functions/create-payment-intent", // ← replace if using Vercel
+  },
+  emailjs: {
+    serviceId: "service_k44zox9", // ← replace
+    publicKey: "EBdFHT24XpBpYf0Vc", // ← replace
+    adminTemplateId: "template_fuwyrtc", // ← replace
+    thankYouTemplateId: "template_ff07wcf", // ← replace
+  },
+};
+
+// ─── Fee schedule (display only — amounts are enforced server-side) ───────────
 
 const FEE_SCHEDULE = {
   "feature-film": { label: "Feature Film (50 min+)", fee: 25 },
@@ -33,339 +50,384 @@ const FEE_SCHEDULE = {
   "student-film": { label: "Student Film / Documentary (10 min or less)", fee: 10 },
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Module: Form ─────────────────────────────────────────────────────────────
 
-/**
- * Reads all named form fields into a plain object.
- * @param {HTMLFormElement} form
- * @returns {Object}
- */
-function extractFormData(form) {
-  const raw = new FormData(form);
-  const data = {};
-  for (const [key, value] of raw.entries()) {
-    data[key] = typeof value === "string" ? value.trim() : value;
-  }
-  return data;
-}
+const Form = {
+  /** Reads all named form fields into a plain object. */
+  extract(form) {
+    const data = {};
+    for (const [key, value] of new FormData(form).entries()) {
+      data[key] = typeof value === "string" ? value.trim() : value;
+    }
+    return data;
+  },
 
-/**
- * Validates the main film submission fields.
- * Returns an array of human-readable error strings (empty = valid).
- * @param {Object} data
- * @returns {string[]}
- */
-function validateFormData(data) {
-  const errors = [];
-  const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const urlRx = /^https?:\/\/.+/i;
-  const duration = Number(data["film-duration"]);
+  /** Validates submission fields. Returns array of error strings (empty = valid). */
+  validate(data) {
+    const errors = [];
+    const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const urlRx = /^https?:\/\/.+/i;
+    const duration = Number(data["film-duration"]);
 
-  if (!data["filmmaker-name"]) errors.push("Filmmaker name is required.");
-  if (!emailRx.test(data["email"])) errors.push("A valid email address is required.");
-  if (!data["film-title"]) errors.push("Film title is required.");
-  if (!data["film-description"]) errors.push("Film description is required.");
-  if (!data["film-category"]) errors.push("Please select a film category.");
-  if (!data["film-duration"] || isNaN(duration) || duration < 1) errors.push("Duration must be a positive number.");
-  if (!data["submission-date"]) errors.push("Submission date is required.");
-  if (!data["film-link"] || !urlRx.test(data["film-link"]))
-    errors.push("Film link must be a valid URL (http:// or https://).");
+    if (!data["filmmaker-name"]) errors.push("Filmmaker name is required.");
+    if (!emailRx.test(data["email"])) errors.push("A valid email address is required.");
+    if (!data["film-title"]) errors.push("Film title is required.");
+    if (!data["film-description"]) errors.push("Film description is required.");
+    if (!data["film-category"]) errors.push("Please select a film category.");
+    if (!data["film-duration"] || isNaN(duration) || duration < 1) errors.push("Duration must be a positive number.");
+    if (!data["submission-date"]) errors.push("Submission date is required.");
+    if (!data["film-link"] || !urlRx.test(data["film-link"]))
+      errors.push("Film link must be a valid URL starting with http:// or https://.");
 
-  return errors;
-}
+    return errors;
+  },
 
-/**
- * Validates card fields inside the payment modal (UI-only).
- * Real charge processing requires a server-side integration (Stripe, Square, etc.).
- * @returns {string[]}
- */
-function validateCardFields() {
-  const errors = [];
-  const name = document.getElementById("card-name").value.trim();
-  const number = document.getElementById("card-number").value.replace(/\s/g, "");
-  const expiry = document.getElementById("card-expiry").value.trim();
-  const cvv = document.getElementById("card-cvv").value.trim();
+  /** Shows or replaces a status banner inside a container. */
+  showStatus(container, type, message) {
+    container.querySelector(".status-message")?.remove();
 
-  if (!name) errors.push("Name on card is required.");
-  if (!/^\d{13,19}$/.test(number)) errors.push("Enter a valid card number.");
-  if (!/^\d{2}\s*\/\s*\d{2}$/.test(expiry)) errors.push("Enter expiry as MM / YY.");
-  if (!/^\d{3,4}$/.test(cvv)) errors.push("Enter a valid CVV (3–4 digits).");
-
-  return errors;
-}
-
-/**
- * Displays an inline status banner appended to a container element.
- * @param {HTMLElement} container
- * @param {"success"|"error"} type
- * @param {string} message
- */
-function showStatusMessage(container, type, message) {
-  const existing = container.querySelector(".status-message");
-  if (existing) existing.remove();
-
-  const el = document.createElement("p");
-  el.className = `status-message status-${type}`;
-  el.textContent = message;
-  Object.assign(el.style, {
-    marginTop: "1rem",
-    padding: "0.75rem 1rem",
-    borderRadius: "6px",
-    fontWeight: "600",
-    background: type === "success" ? "#d4edda" : "#f8d7da",
-    color: type === "success" ? "#155724" : "#721c24",
-  });
-  container.appendChild(el);
-}
-
-// ─── Email senders ────────────────────────────────────────────────────────────
-
-/**
- * Sends the admin notification to talibsmith77@gmail.com.
- *
- * Required EmailJS template variables:
- *   {{to_email}}, {{filmmaker_name}}, {{email}}, {{phone}},
- *   {{film_title}}, {{film_category}}, {{film_description}},
- *   {{film_duration}}, {{submission_date}}, {{film_link}}, {{fee_paid}}
- *
- * @param {Object} data
- * @param {number} fee
- * @returns {Promise}
- */
-function sendAdminEmail(data, fee) {
-  return emailjs.send(EMAILJS_SERVICE_ID, ADMIN_TEMPLATE_ID, {
-    to_email: "talibsmith77@gmail.com",
-    filmmaker_name: data["filmmaker-name"],
-    email: data["email"],
-    phone: data["phone"] || "Not provided",
-    film_title: data["film-title"],
-    film_category: FEE_SCHEDULE[data["film-category"]].label,
-    film_description: data["film-description"],
-    film_duration: data["film-duration"] + " min",
-    submission_date: data["submission-date"],
-    film_link: data["film-link"],
-    fee_paid: `$${fee}.00`,
-  });
-}
-
-/**
- * Sends a thank-you confirmation to the filmmaker.
- *
- * Required EmailJS template variables:
- *   {{to_email}}, {{filmmaker_name}}, {{film_title}},
- *   {{film_category}}, {{fee_paid}}
- *
- * @param {Object} data
- * @param {number} fee
- * @returns {Promise}
- */
-function sendThankYouEmail(data, fee) {
-  return emailjs.send(EMAILJS_SERVICE_ID, THANKYOU_TEMPLATE_ID, {
-    to_email: data["email"],
-    filmmaker_name: data["filmmaker-name"],
-    film_title: data["film-title"],
-    film_category: FEE_SCHEDULE[data["film-category"]].label,
-    fee_paid: `$${fee}.00`,
-  });
-}
-
-// ─── Payment modal helpers ────────────────────────────────────────────────────
-
-/** Thin wrappers so we never repeat getElementById strings. */
-const modal = {
-  overlay: () => document.getElementById("payment-overlay"),
-  closeBtn: () => document.getElementById("modal-close-btn"),
-  categoryLabel: () => document.getElementById("modal-category-label"),
-  feeDisplay: () => document.getElementById("modal-fee"),
-  payBtnAmount: () => document.getElementById("pay-btn-amount"),
-  payBtn: () => document.getElementById("pay-btn"),
-  errorEl: () => document.getElementById("payment-error"),
+    const el = document.createElement("p");
+    el.className = `status-message status-${type}`;
+    el.textContent = message;
+    Object.assign(el.style, {
+      marginTop: "1rem",
+      padding: "0.75rem 1rem",
+      borderRadius: "6px",
+      fontWeight: "600",
+      background: type === "success" ? "#d4edda" : "#f8d7da",
+      color: type === "success" ? "#155724" : "#721c24",
+    });
+    container.appendChild(el);
+  },
 };
 
-/**
- * Opens the payment modal, populating it for the selected film category.
- * @param {string} categoryKey
- */
-function openPaymentModal(categoryKey) {
-  const { label, fee } = FEE_SCHEDULE[categoryKey];
+// ─── Module: EmailJS ──────────────────────────────────────────────────────────
 
-  modal.categoryLabel().textContent = label;
-  modal.feeDisplay().textContent = `$${fee}.00`;
-  modal.payBtnAmount().textContent = `$${fee}.00`;
-  modal.errorEl().hidden = true;
+const Email = {
+  /** Loads EmailJS SDK and initialises it. Returns a Promise. */
+  init() {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
+      script.onload = () => {
+        emailjs.init({ publicKey: CONFIG.emailjs.publicKey });
+        console.log("EmailJS ready.");
+        resolve();
+      };
+      script.onerror = () => reject(new Error("Failed to load EmailJS SDK."));
+      document.head.appendChild(script);
+    });
+  },
 
-  ["card-name", "card-number", "card-expiry", "card-cvv"].forEach((id) => {
-    document.getElementById(id).value = "";
-  });
+  /**
+   * Sends admin notification to talibsmith77@gmail.com.
+   * Template variables: {{to_email}} {{filmmaker_name}} {{email}} {{phone}}
+   *   {{film_title}} {{film_category}} {{film_description}}
+   *   {{film_duration}} {{submission_date}} {{film_link}} {{fee_paid}}
+   */
+  sendAdminNotification(data, fee) {
+    return emailjs.send(CONFIG.emailjs.serviceId, CONFIG.emailjs.adminTemplateId, {
+      to_email: "talibsmith77@gmail.com",
+      filmmaker_name: data["filmmaker-name"],
+      email: data["email"],
+      phone: data["phone"] || "Not provided",
+      film_title: data["film-title"],
+      film_category: FEE_SCHEDULE[data["film-category"]].label,
+      film_description: data["film-description"],
+      film_duration: `${data["film-duration"]} min`,
+      submission_date: data["submission-date"],
+      film_link: data["film-link"],
+      fee_paid: `$${fee}.00`,
+    });
+  },
 
-  modal.overlay().hidden = false;
-  document.body.style.overflow = "hidden";
-  document.getElementById("card-name").focus();
-}
+  /**
+   * Sends a thank-you email to the filmmaker.
+   * Template variables: {{to_email}} {{filmmaker_name}} {{film_title}}
+   *   {{film_category}} {{fee_paid}}
+   */
+  sendThankYou(data, fee) {
+    return emailjs.send(CONFIG.emailjs.serviceId, CONFIG.emailjs.thankYouTemplateId, {
+      to_email: data["email"],
+      filmmaker_name: data["filmmaker-name"],
+      film_title: data["film-title"],
+      film_category: FEE_SCHEDULE[data["film-category"]].label,
+      fee_paid: `$${fee}.00`,
+    });
+  },
+};
 
-/** Closes the payment modal and restores page scrolling. */
-function closePaymentModal() {
-  modal.overlay().hidden = true;
-  document.body.style.overflow = "";
-}
+// ─── Module: Modal ────────────────────────────────────────────────────────────
 
-/**
- * Shows an error message inside the payment modal.
- * @param {string} message
- */
-function showModalError(message) {
-  const el = modal.errorEl();
-  el.textContent = message;
-  el.hidden = false;
-}
+const Modal = {
+  // Cached element references (populated in Modal.init)
+  els: {},
 
-// ─── Card input auto-formatting ───────────────────────────────────────────────
+  init() {
+    this.els = {
+      overlay: document.getElementById("payment-overlay"),
+      closeBtn: document.getElementById("modal-close-btn"),
+      categoryLabel: document.getElementById("modal-category-label"),
+      feeDisplay: document.getElementById("modal-fee"),
+      payBtnAmount: document.getElementById("pay-btn-amount"),
+      payBtn: document.getElementById("pay-btn"),
+      errorEl: document.getElementById("payment-error"),
+    };
+  },
 
-function formatCardNumber(e) {
-  const digits = e.target.value.replace(/\D/g, "").slice(0, 16);
-  e.target.value = digits.replace(/(.{4})/g, "$1 ").trim();
-}
+  open(categoryKey) {
+    const { label, fee } = FEE_SCHEDULE[categoryKey];
+    this.els.categoryLabel.textContent = label;
+    this.els.feeDisplay.textContent = `$${fee}.00`;
+    this.els.payBtnAmount.textContent = `$${fee}.00`;
+    this.hideError();
 
-function formatExpiry(e) {
-  const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
-  e.target.value = digits.length > 2 ? `${digits.slice(0, 2)} / ${digits.slice(2)}` : digits;
-}
+    this.els.overlay.hidden = false;
+    document.body.style.overflow = "hidden";
+  },
 
-function formatCVV(e) {
-  e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
-}
+  close() {
+    this.els.overlay.hidden = true;
+    document.body.style.overflow = "";
+  },
 
-// ─── Form submit handler ──────────────────────────────────────────────────────
+  showError(message) {
+    this.els.errorEl.textContent = message;
+    this.els.errorEl.hidden = false;
+  },
 
-/** Holds validated form data while the user completes payment. */
-let pendingFormData = null;
+  hideError() {
+    this.els.errorEl.hidden = true;
+  },
 
-/**
- * Handles the main form submission event.
- * Validates fields, then opens the payment modal.
- * @param {SubmitEvent} event
- */
-function handleFormSubmit(event) {
-  event.preventDefault();
+  setPayButtonState(loading, fee) {
+    this.els.payBtn.disabled = loading;
+    this.els.payBtn.textContent = loading ? "Processing…" : `Pay $${fee}.00 & Submit`;
+  },
+};
 
-  const form = event.target;
-  const container = form.closest(".container") || form;
-  const formData = extractFormData(form);
-  const errors = validateFormData(formData);
+// ─── Module: StripePayment ────────────────────────────────────────────────────
 
-  if (errors.length > 0) {
-    console.warn("Validation failed:", errors);
-    showStatusMessage(container, "error", errors.join(" "));
-    return;
-  }
+const StripePayment = {
+  stripe: null,
+  elements: null,
+  cardElement: null,
 
-  // Clear any previous status banner before the modal opens
-  const existing = container.querySelector(".status-message");
-  if (existing) existing.remove();
+  /** Initialises Stripe and mounts the card Element into the modal. */
+  init() {
+    // Stripe.js is loaded via <script> tag in the HTML
+    if (typeof Stripe === "undefined") {
+      throw new Error("Stripe.js failed to load. Check your internet connection.");
+    }
 
-  pendingFormData = formData;
-  openPaymentModal(formData["film-category"]);
-}
+    this.stripe = Stripe(CONFIG.stripe.publicKey);
 
-// ─── Pay button handler ───────────────────────────────────────────────────────
+    this.elements = this.stripe.elements({
+      fonts: [{ cssSrc: "https://fonts.googleapis.com/css2?family=DM+Sans&display=swap" }],
+    });
 
-/**
- * Handles the "Pay & Submit" click inside the payment modal.
- * Validates card fields, sends both emails, then finalises submission.
- */
-async function handlePayment() {
-  if (!pendingFormData) return;
+    this.cardElement = this.elements.create("card", {
+      style: {
+        base: {
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: "15px",
+          color: "#e8e8e8",
+          "::placeholder": { color: "#454954" },
+          iconColor: "#9b9faa",
+        },
+        invalid: {
+          color: "#f87171",
+          iconColor: "#f87171",
+        },
+      },
+      hidePostalCode: true,
+    });
 
-  const cardErrors = validateCardFields();
-  if (cardErrors.length > 0) {
-    showModalError(cardErrors.join(" "));
-    return;
-  }
+    this.cardElement.mount("#stripe-card-element");
 
-  const payBtn = modal.payBtn();
-  payBtn.disabled = true;
-  payBtn.textContent = "Processing…";
-  modal.errorEl().hidden = true;
+    // Surface Stripe's real-time card validation errors
+    this.cardElement.on("change", (event) => {
+      if (event.error) {
+        Modal.showError(event.error.message);
+      } else {
+        Modal.hideError();
+      }
+    });
 
-  const { fee } = FEE_SCHEDULE[pendingFormData["film-category"]];
+    console.log("Stripe Elements mounted.");
+  },
 
-  try {
-    // ── Integrate Stripe / Square here to charge the card before sending emails ──
+  /**
+   * Calls the serverless function to create a PaymentIntent, then confirms
+   * the card payment using the client secret returned.
+   *
+   * @param {Object} formData  — validated film submission data
+   * @param {string} billingName — cardholder name for Stripe
+   * @returns {Promise<{paymentIntent}>}
+   */
+  async charge(formData, billingName) {
+    const { fee } = FEE_SCHEDULE[formData["film-category"]];
 
-    // Fire both emails concurrently for speed
-    await Promise.all([sendAdminEmail(pendingFormData, fee), sendThankYouEmail(pendingFormData, fee)]);
+    // ── Step 1: Ask our server to create a PaymentIntent ──────────────────────
+    const response = await fetch(CONFIG.payment.endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filmCategory: formData["film-category"],
+        filmTitle: formData["film-title"],
+        filmmakerName: formData["filmmaker-name"],
+        filmmakerEmail: formData["email"],
+      }),
+    });
 
-    // Console JSON output
-    console.log(
-      "Film submission successful ✓\n",
-      JSON.stringify({ ...pendingFormData, fee_paid: `$${fee}.00` }, null, 2),
-    );
-    console.log("Admin notification sent → talibsmith77@gmail.com");
-    console.log("Thank-you email sent    →", pendingFormData["email"]);
+    // Surface server errors clearly
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Server error ${response.status}. Please try again.`);
+    }
 
-    closePaymentModal();
+    const { clientSecret } = await response.json();
+    if (!clientSecret) {
+      throw new Error("Invalid response from payment server. Please try again.");
+    }
 
+    // ── Step 2: Confirm the payment with Stripe ────────────────────────────────
+    // stripe.confirmCardPayment handles 3D Secure, SCA, and other auth flows.
+    const { paymentIntent, error } = await this.stripe.confirmCardPayment(clientSecret, {
+      payment_method: {
+        card: this.cardElement,
+        billing_details: { name: billingName },
+      },
+    });
+
+    if (error) {
+      // error.message is already user-friendly (Stripe formats it)
+      throw new Error(error.message);
+    }
+
+    if (paymentIntent.status !== "succeeded") {
+      throw new Error(`Unexpected payment status: ${paymentIntent.status}. Please contact us.`);
+    }
+
+    console.log(`Payment succeeded: ${paymentIntent.id} | $${fee}.00`);
+    return { paymentIntent };
+  },
+};
+
+// ─── App: state + orchestration ──────────────────────────────────────────────
+
+const App = {
+  /** Holds validated form data while the user completes payment. */
+  pendingFormData: null,
+
+  // ── Initialise all modules ─────────────────────────────────────────────────
+  async init() {
+    Modal.init();
+
+    try {
+      StripePayment.init();
+    } catch (err) {
+      console.error("Stripe init failed:", err.message);
+    }
+
+    // EmailJS loads asynchronously — failure is non-fatal at init time
+    Email.init().catch((err) => console.error(err.message));
+
+    this.bindEvents();
+  },
+
+  // ── Wire up all event listeners in one place ───────────────────────────────
+  bindEvents() {
     const form = document.getElementById("submit-film-form");
+    if (!form) {
+      console.error("submit-film-form not found.");
+      return;
+    }
+
+    form.addEventListener("submit", (e) => this.handleFormSubmit(e));
+    Modal.els.payBtn.addEventListener("click", () => this.handlePayment());
+    Modal.els.closeBtn.addEventListener("click", () => Modal.close());
+
+    // Close on backdrop click
+    Modal.els.overlay.addEventListener("click", (e) => {
+      if (e.target === Modal.els.overlay) Modal.close();
+    });
+
+    // Close on Escape key
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !Modal.els.overlay.hidden) Modal.close();
+    });
+  },
+
+  // ── Form submission → validate → open modal ────────────────────────────────
+  handleFormSubmit(event) {
+    event.preventDefault();
+
+    const form = event.target;
     const container = form.closest(".container") || form;
-    showStatusMessage(
-      container,
-      "success",
-      "🎉 Your film has been submitted! Check your inbox for a confirmation email.",
-    );
-    form.reset();
-    pendingFormData = null;
-  } catch (error) {
-    console.error("Submission error — email send failed:", error);
-    showModalError("Something went wrong sending the confirmation. Please contact us directly.");
-  } finally {
-    payBtn.disabled = false;
-    payBtn.textContent = `Pay $${fee}.00 & Submit`;
-  }
-}
+    const formData = Form.extract(form);
+    const errors = Form.validate(formData);
 
-// ─── Initialise ───────────────────────────────────────────────────────────────
+    if (errors.length > 0) {
+      console.warn("Validation failed:", errors);
+      Form.showStatus(container, "error", errors.join(" "));
+      return;
+    }
 
-function init() {
-  // Dynamically load EmailJS SDK
-  const script = document.createElement("script");
-  script.src = "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
-  script.onload = () => {
-    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-    console.log("EmailJS ready.");
-  };
-  script.onerror = () => {
-    console.error("Failed to load EmailJS SDK — check your connection.");
-  };
-  document.head.appendChild(script);
+    // Clear any leftover status banner from a previous attempt
+    container.querySelector(".status-message")?.remove();
 
-  // Main form → open payment modal
-  const form = document.getElementById("submit-film-form");
-  if (!form) {
-    console.error("submit-film-form not found in the DOM.");
-    return;
-  }
-  form.addEventListener("submit", handleFormSubmit);
+    this.pendingFormData = formData;
+    Modal.open(formData["film-category"]);
+  },
 
-  // Pay button inside modal
-  modal.payBtn()?.addEventListener("click", handlePayment);
+  // ── Pay button → charge card → send emails → success ──────────────────────
+  async handlePayment() {
+    if (!this.pendingFormData) return;
 
-  // Close via X button
-  modal.closeBtn()?.addEventListener("click", closePaymentModal);
+    const { fee } = FEE_SCHEDULE[this.pendingFormData["film-category"]];
+    Modal.hideError();
+    Modal.setPayButtonState(true, fee);
 
-  // Close when clicking the dark backdrop
-  modal.overlay().addEventListener("click", (e) => {
-    if (e.target === modal.overlay()) closePaymentModal();
-  });
+    try {
+      // 1. Charge the card via Stripe
+      await StripePayment.charge(this.pendingFormData, this.pendingFormData["filmmaker-name"]);
 
-  // Close on Escape key
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !modal.overlay().hidden) closePaymentModal();
-  });
+      // 2. Send both emails concurrently
+      await Promise.all([
+        Email.sendAdminNotification(this.pendingFormData, fee),
+        Email.sendThankYou(this.pendingFormData, fee),
+      ]);
 
-  // Card field auto-formatting
-  document.getElementById("card-number").addEventListener("input", formatCardNumber);
-  document.getElementById("card-expiry").addEventListener("input", formatExpiry);
-  document.getElementById("card-cvv").addEventListener("input", formatCVV);
-}
+      // 3. Console JSON output
+      console.log(
+        "Film submission complete ✓\n",
+        JSON.stringify({ ...this.pendingFormData, fee_paid: `$${fee}.00` }, null, 2),
+      );
+      console.log("Admin notification → talibsmith77@gmail.com");
+      console.log("Thank-you email    →", this.pendingFormData["email"]);
 
-document.addEventListener("DOMContentLoaded", init);
+      // 4. Wrap up
+      Modal.close();
+
+      const form = document.getElementById("submit-film-form");
+      const container = form.closest(".container") || form;
+      Form.showStatus(
+        container,
+        "success",
+        "🎉 Your film has been submitted! Check your inbox for a confirmation email.",
+      );
+      form.reset();
+      this.pendingFormData = null;
+    } catch (err) {
+      // Stripe errors are already user-friendly; server errors are sanitised above
+      console.error("Payment/submission error:", err.message);
+      Modal.showError(err.message);
+      Modal.setPayButtonState(false, fee);
+    }
+  },
+};
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+
+document.addEventListener("DOMContentLoaded", () => App.init());
